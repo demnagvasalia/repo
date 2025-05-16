@@ -1,20 +1,20 @@
 <!DOCTYPE html>
-<html lang="en" >
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vape Inventory</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 p-6">
+<body class="bg-gray-900 text-white p-6">
 
-  <!-- Search bar container -->
+  <!-- Search bar -->
   <div class="mb-6 max-w-md mx-auto">
     <input 
       id="searchInput"
       type="text" 
       placeholder="Search vape liquids..." 
-      class="w-full p-3 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      class="w-full p-3 rounded border border-gray-700 bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
     />
   </div>
 
@@ -23,7 +23,6 @@
   <script>
     const sheetyUrl = 'https://api.sheety.co/d8ad2cec07035479145c1b0015df3376/sheet1/sheet1';
 
-    // Your vape liquids list
     const vapeLiquids = [
       { name: "Double Apple", emoji: "🍏🍎" },
       { name: "Watermelon Cherry", emoji: "🍉🍒" },
@@ -53,14 +52,12 @@
       { name: "Blueberry", emoji: "🔵🫐" }
     ];
 
-    // Map of liquidName -> { id, volumeMl }
     let inventoryData = {};
-    let filteredLiquids = []; // To hold filtered vape liquids by search
+    let filteredLiquids = [];
 
     const inventoryDiv = document.getElementById('inventory');
     const searchInput = document.getElementById('searchInput');
 
-    // Fetch current data from Sheety
     async function fetchInventory() {
       const res = await fetch(sheetyUrl);
       if (!res.ok) {
@@ -72,35 +69,27 @@
       data.sheet1.forEach(item => {
         inventoryData[item.name] = { id: item.id, volumeMl: parseInt(item.volumeMl) || 0 };
       });
-      filteredLiquids = vapeLiquids; // Initialize filtered list
+      filteredLiquids = vapeLiquids;
       renderInventory();
     }
 
-    // Update Sheety for one liquid
     async function updateLiquid(name, volumeMl, id) {
       try {
         const res = await fetch(`${sheetyUrl}/${id}`, {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            sheet1: { volumeMl }
-          })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sheet1: { volumeMl } })
         });
         if (!res.ok) throw new Error('Failed to update');
         const data = await res.json();
-        console.log('Updated:', data);
         alert(`Updated ${name} to ${volumeMl}ml`);
       } catch (e) {
         alert(`Error updating ${name}: ${e.message}`);
       }
     }
 
-    // Create UI based on filteredLiquids
     function renderInventory() {
-      inventoryDiv.innerHTML = ''; // clear
-      // Map filtered vapeLiquids with volumeMl from inventoryData or 0 for sorting
+      inventoryDiv.innerHTML = '';
       const liquidsWithVolume = filteredLiquids.map(liquid => {
         const inv = inventoryData[liquid.name];
         return {
@@ -109,7 +98,6 @@
           id: inv ? inv.id : null
         };
       });
-      // Sort descending by volumeMl
       liquidsWithVolume.sort((a, b) => b.volumeMl - a.volumeMl);
 
       liquidsWithVolume.forEach(liquid => {
@@ -125,10 +113,9 @@
       });
     }
 
-    // Add a card for a liquid
     function addLiquidCard(liquid, volume, id) {
       const container = document.createElement('div');
-      container.className = "bg-white p-4 rounded shadow flex flex-col";
+      container.className = "bg-gray-800 p-4 rounded shadow-md flex flex-col";
 
       const title = document.createElement('h2');
       title.className = "text-xl font-semibold mb-2";
@@ -138,23 +125,21 @@
       slider.type = 'range';
       slider.min = 0;
       slider.max = 500;
-      slider.step = 5; // step of 5 ml
+      slider.step = 5;
       slider.value = volume;
       slider.className = "w-full";
 
       const valueDisplay = document.createElement('p');
-      valueDisplay.className = "mt-2";
+      valueDisplay.className = "mt-2 text-gray-300";
       valueDisplay.textContent = `Volume: ${volume} ml`;
 
       slider.addEventListener('input', () => {
         valueDisplay.textContent = `Volume: ${slider.value} ml`;
       });
 
-      // Container for buttons side by side
       const btnContainer = document.createElement('div');
       btnContainer.className = "mt-3 flex gap-2";
 
-      // Save button
       const saveBtn = document.createElement('button');
       saveBtn.textContent = 'Save';
       saveBtn.className = "bg-blue-600 hover:bg-blue-700 text-white py-1 px-4 rounded flex-1";
@@ -164,18 +149,14 @@
         inventoryData[liquid.name].volumeMl = newVolume;
       });
 
-      // Delete button
       const deleteBtn = document.createElement('button');
       deleteBtn.textContent = 'Delete';
       deleteBtn.className = "bg-red-600 hover:bg-red-700 text-white py-1 px-4 rounded flex-1";
       deleteBtn.addEventListener('click', async () => {
         if (confirm(`Are you sure you want to delete ${liquid.name}?`)) {
           try {
-            const res = await fetch(`${sheetyUrl}/${id}`, {
-              method: 'DELETE'
-            });
+            const res = await fetch(`${sheetyUrl}/${id}`, { method: 'DELETE' });
             if (!res.ok) throw new Error('Delete failed');
-            // Remove from local data and UI
             delete inventoryData[liquid.name];
             container.remove();
             alert(`${liquid.name} deleted.`);
@@ -196,17 +177,11 @@
       inventoryDiv.appendChild(container);
     }
 
-    // Create row in Sheety (POST)
     async function createRowInSheet(name, volumeMl) {
       const res = await fetch(sheetyUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sheet1: {
-            name,
-            volumeMl
-          }
-        })
+        body: JSON.stringify({ sheet1: { name, volumeMl } })
       });
       if (!res.ok) {
         alert(`Failed to create row for ${name}`);
@@ -215,16 +190,11 @@
       return await res.json().then(data => data.sheet1);
     }
 
-    // Listen for input changes on the search bar
     searchInput.addEventListener('input', () => {
       const query = searchInput.value.trim().toLowerCase();
-      if (query === '') {
-        filteredLiquids = vapeLiquids;
-      } else {
-        filteredLiquids = vapeLiquids.filter(liquid =>
-          liquid.name.toLowerCase().includes(query)
-        );
-      }
+      filteredLiquids = query === ''
+        ? vapeLiquids
+        : vapeLiquids.filter(liquid => liquid.name.toLowerCase().includes(query));
       renderInventory();
     });
 
