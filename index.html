@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vape Inventory</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+
+  <!-- Search bar container -->
+  <div class="mb-6 max-w-md mx-auto">
+    <input 
+      id="searchInput"
+      type="text" 
+      placeholder="Search vape liquids..." 
+      class="w-full p-3 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+    />
+  </div>
+
+  <div id="inventory" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+
+  <script>
+    const sheetyUrl = 'https://api.sheety.co/d8ad2cec07035479145c1b0015df3376/sheet1/sheet1';
+
+    // Your vape liquids list
+    const vapeLiquids = [
+      { name: "Double Apple", emoji: "🍏🍎" },
+      { name: "Watermelon Cherry", emoji: "🍉🍒" },
+      { name: "Blueberry Raspberry Pomegranate", emoji: "🫐🍓" },
+      { name: "Pomegranate", emoji: "🍈" },
+      { name: "Raspberry Lychee", emoji: "🍓🥭" },
+      { name: "Cherry Lemon Peach", emoji: "🍒🍋🍑" },
+      { name: "Grape Cherry", emoji: "🍇🍒" },
+      { name: "Pink Lemonade Soda", emoji: "🍹" },
+      { name: "Strawberry Kiwi", emoji: "🍓🥝" },
+      { name: "Strawberry Raspberry", emoji: "🍓🍓" },
+      { name: "Cherry Ice", emoji: "🍒❄️" },
+      { name: "Kiwi Passion Fruit Guava", emoji: "🥝🍈🍈" },
+      { name: "Cherry Cola", emoji: "🍒🥤" },
+      { name: "Peach Ice", emoji: "🍑❄️" },
+      { name: "Blueberry Sour Raspberry", emoji: "🫐🍋🍓" },
+      { name: "Cool Mint", emoji: "❄️🌿" },
+      { name: "Strawberry Cherry Lemon", emoji: "🍓🍒🍋" },
+      { name: "Apple Peach", emoji: "🍏🍑" },
+      { name: "Blackberry Lemon", emoji: "🫐🍋" },
+      { name: "Watermelon", emoji: "🍉" },
+      { name: "Pink Grapefruit", emoji: "🍊" },
+      { name: "Sour Watermelon Gummy", emoji: "🍉🍬" },
+      { name: "Blue Razz Lemonade", emoji: "🔵🍓🍇" },
+      { name: "Sour Apple", emoji: "🍏" },
+      { name: "Strawberry ice", emoji: "🍓🧊" },
+      { name: "Blueberry", emoji: "🔵🫐" }
+    ];
+
+    // Map of liquidName -> { id, volumeMl }
+    let inventoryData = {};
+    let filteredLiquids = []; // To hold filtered vape liquids by search
+
+    const inventoryDiv = document.getElementById('inventory');
+    const searchInput = document.getElementById('searchInput');
+
+    // Fetch current data from Sheety
+    async function fetchInventory() {
+      const res = await fetch(sheetyUrl);
+      if (!res.ok) {
+        alert('Failed to load inventory data');
+        return;
+      }
+      const data = await res.json();
+      inventoryData = {};
+      data.sheet1.forEach(item => {
+        inventoryData[item.name] = { id: item.id, volumeMl: parseInt(item.volumeMl) || 0 };
+      });
+      filteredLiquids = vapeLiquids; // Initialize filtered list
+      renderInventory();
+    }
+
+    // Update Sheety for one liquid
+    async function updateLiquid(name, volumeMl, id) {
+      try {
+        const res = await fetch(`${sheetyUrl}/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            sheet1: { volumeMl }
+          })
+        });
+        if (!res.ok) throw new Error('Failed to update');
+        const data = await res.json();
+        console.log('Updated:', data);
+        alert(`Updated ${name} to ${volumeMl}ml`);
+      } catch (e) {
+        alert(`Error updating ${name}: ${e.message}`);
+      }
+    }
+
+    // Create UI based on filteredLiquids
+    function renderInventory() {
+      inventoryDiv.innerHTML = ''; // clear
+      // Map filtered vapeLiquids with volumeMl from inventoryData or 0 for sorting
+      const liquidsWithVolume = filteredLiquids.map(liquid => {
+        const inv = inventoryData[liquid.name];
+        return {
+          ...liquid,
+          volumeMl: inv ? inv.volumeMl : 0,
+          id: inv ? inv.id : null
+        };
+      });
+      // Sort descending by volumeMl
+      liquidsWithVolume.sort((a, b) => b.volumeMl - a.volumeMl);
+
+      liquidsWithVolume.forEach(liquid => {
+        if (!liquid.id) {
+          createRowInSheet(liquid.name, 100).then(newRow => {
+            if (!newRow) return;
+            inventoryData[liquid.name] = { id: newRow.id, volumeMl: 100 };
+            addLiquidCard(liquid, 100, newRow.id);
+          });
+        } else {
+          addLiquidCard(liquid, liquid.volumeMl, liquid.id);
+        }
+      });
+    }
+
+    // Add a card for a liquid
+    function addLiquidCard(liquid, volume, id) {
+      const container = document.createElement('div');
+      container.className = "bg-white p-4 rounded shadow flex flex-col";
+
+      const title = document.createElement('h2');
+      title.className = "text-xl font-semibold mb-2";
+      title.textContent = `${liquid.emoji} ${liquid.name}`;
+
+      const slider = document.createElement('input');
+      slider.type = 'range';
+      slider.min = 0;
+      slider.max = 500;
+      slider.step = 5; // step of 5 ml
+      slider.value = volume;
+      slider.className = "w-full";
+
+      const valueDisplay = document.createElement('p');
+      valueDisplay.className = "mt-2";
+      valueDisplay.textContent = `Volume: ${volume} ml`;
+
+      slider.addEventListener('input', () => {
+        valueDisplay.textContent = `Volume: ${slider.value} ml`;
+      });
+
+      // Container for buttons side by side
+      const btnContainer = document.createElement('div');
+      btnContainer.className = "mt-3 flex gap-2";
+
+      // Save button
+      const saveBtn = document.createElement('button');
+      saveBtn.textContent = 'Save';
+      saveBtn.className = "bg-blue-600 hover:bg-blue-700 text-white py-1 px-4 rounded flex-1";
+      saveBtn.addEventListener('click', () => {
+        const newVolume = parseInt(slider.value);
+        updateLiquid(liquid.name, newVolume, id);
+        inventoryData[liquid.name].volumeMl = newVolume;
+      });
+
+      // Delete button
+      const deleteBtn = document.createElement('button');
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.className = "bg-red-600 hover:bg-red-700 text-white py-1 px-4 rounded flex-1";
+      deleteBtn.addEventListener('click', async () => {
+        if (confirm(`Are you sure you want to delete ${liquid.name}?`)) {
+          try {
+            const res = await fetch(`${sheetyUrl}/${id}`, {
+              method: 'DELETE'
+            });
+            if (!res.ok) throw new Error('Delete failed');
+            // Remove from local data and UI
+            delete inventoryData[liquid.name];
+            container.remove();
+            alert(`${liquid.name} deleted.`);
+          } catch (e) {
+            alert(`Error deleting ${liquid.name}: ${e.message}`);
+          }
+        }
+      });
+
+      btnContainer.appendChild(saveBtn);
+      btnContainer.appendChild(deleteBtn);
+
+      container.appendChild(title);
+      container.appendChild(slider);
+      container.appendChild(valueDisplay);
+      container.appendChild(btnContainer);
+
+      inventoryDiv.appendChild(container);
+    }
+
+    // Create row in Sheety (POST)
+    async function createRowInSheet(name, volumeMl) {
+      const res = await fetch(sheetyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sheet1: {
+            name,
+            volumeMl
+          }
+        })
+      });
+      if (!res.ok) {
+        alert(`Failed to create row for ${name}`);
+        return null;
+      }
+      return await res.json().then(data => data.sheet1);
+    }
+
+    // Listen for input changes on the search bar
+    searchInput.addEventListener('input', () => {
+      const query = searchInput.value.trim().toLowerCase();
+      if (query === '') {
+        filteredLiquids = vapeLiquids;
+      } else {
+        filteredLiquids = vapeLiquids.filter(liquid =>
+          liquid.name.toLowerCase().includes(query)
+        );
+      }
+      renderInventory();
+    });
+
+    fetchInventory();
+  </script>
+</body>
+</html>
